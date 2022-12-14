@@ -59,7 +59,7 @@ void setup()
 
 void loop()
 {
-  lcd.setCursor(3,digitalRead(pushButton));
+  lcd.setCursor(4,digitalRead(pushButton));
   lcd.write(0);
   lcd.setCursor(updatedCactusPosition(), 1);
   lcd.write(1);
