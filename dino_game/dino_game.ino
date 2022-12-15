@@ -1,6 +1,13 @@
 #include <LiquidCrystal_I2C.h>
 
-LiquidCrystal_I2C lcd(0x27,20,4);  // set the LCD address to 0x27 for a 16 chars and 2 line display
+// all the game macro definitions
+#define DINO_CHARACTER 0
+#define CACTUS_CHARACTER 1
+#define SUN_CHARACTER 2
+#define PUSH_BUTTON_PIN 5
+
+// set the LCD address to 0x27 for a 16 chars and 2 line display
+LiquidCrystal_I2C lcd(0x27,20,4); 
 
 byte dino[8] = { //dino
   B01110,
@@ -24,7 +31,7 @@ byte cactus[8] = { //cactus
   B00100,
 };
 
-byte sun[8] = { 
+byte sun[8] = { //sun
   B00000,
   B10101,
   B01110,
@@ -35,10 +42,12 @@ byte sun[8] = {
   B00000,
 };
 
-int pushButton = 5;
+// all the game states 
 int cactusPosition = 15;
 int buttonState = 0;
-int totalPoints = 0;
+unsigned long buttonTimeout = 0;
+int gameScore = 0;
+char stringBuffer[10];
 
 int updatedCactusPosition() {
   cactusPosition = cactusPosition < 0 ? 15 : --cactusPosition;
@@ -46,36 +55,73 @@ int updatedCactusPosition() {
 }
 
 int updatedButtonState() {
-  buttonState = digitalRead(pushButton);
-  return buttonState;
+  if(digitalRead(PUSH_BUTTON_PIN) == LOW && !buttonState) {
+    Serial.println("Pressed!");
+    buttonTimeout = millis();
+    buttonState = true;
+  } 
+  if(buttonState && millis() - buttonTimeout >= 1500) {
+    buttonState = false;
+    Serial.println("Released!");
+  }
+  return !buttonState;
+}
+
+void checkIfGameOver() {
+  if(cactusPosition == 4) {
+    if(!buttonState) {
+      lcd.clear();
+      lcd.print("GAME OVER!!!");
+      delay(1000);
+      lcd.clear();
+      lcd.print("Press to restart");
+      // wait for the user to restart the game
+      while(digitalRead(PUSH_BUTTON_PIN)) {}
+      // reset all the game states prior to the actual restart
+      cactusPosition = 15;
+      buttonState = 1;
+      gameScore = 0;
+      sprintf(stringBuffer, "Score:%d", gameScore);
+    } else {
+        sprintf(stringBuffer, "Score:%d", ++gameScore);
+    }
+  } else {
+    sprintf(stringBuffer, "Score:%d", gameScore);
+  }
 }
 
 void setup()
 {
-  pinMode(pushButton, INPUT); // push button setup
-  lcd.init(); // initialize the lcd 
-  lcd.backlight(); // switch backlight on
-  // create lcd characters
-  lcd.createChar(0, dino);
-  lcd.createChar(1, cactus);
-  lcd.createChar(2, sun);
+  // push button setup
+  pinMode(PUSH_BUTTON_PIN, INPUT);
+  // lcd initialization
+  lcd.init(); 
+  lcd.backlight();
+  // create custom game characters
+  lcd.createChar(DINO_CHARACTER, dino);
+  lcd.createChar(CACTUS_CHARACTER, cactus);
+  lcd.createChar(SUN_CHARACTER, sun);
   lcd.clear();
+  // start the game once the user is ready
   lcd.print("Press to start");
-  while(digitalRead(pushButton)) {}
+  while(digitalRead(PUSH_BUTTON_PIN)) {}
   lcd.clear();
 }
 
 
 void loop()
 {
+  checkIfGameOver();
+  // update all the lcd with all updated game states
   lcd.clear();
   lcd.setCursor(4,updatedButtonState());
-  lcd.write(0);
+  lcd.write(DINO_CHARACTER);
   lcd.setCursor(updatedCactusPosition(), 1);
-  lcd.write(1);
+  lcd.write(CACTUS_CHARACTER);
   lcd.setCursor(0, 0);
-  lcd.write(2);
+  lcd.write(SUN_CHARACTER);
+  // update the game score board
   lcd.setCursor(7, 0);
-  lcd.print("Score:");
-  delay(500);
+  lcd.print(stringBuffer);
+  delay(300);
 }
