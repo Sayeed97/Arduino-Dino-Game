@@ -105,6 +105,8 @@ void setup()
   // start the game once the user is ready
   lcd.print("Press to start");
   while(digitalRead(PUSH_BUTTON_PIN)) {}
+  // reset the button state to avoid misreading when the game starts
+  buttonState = !buttonState;
   lcd.clear();
 }
 
