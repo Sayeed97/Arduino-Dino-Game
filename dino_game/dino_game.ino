@@ -46,29 +46,44 @@ byte sun[8] = { //sun
 int cactusPosition = 15;
 int buttonState = 0;
 unsigned long buttonTimeout = 0;
+unsigned long cactusPositionUpdateTime = 0;
+bool isCactusUpdated = false;
 int gameScore = 0;
 char stringBuffer[10];
 
-int updatedCactusPosition() {
-  cactusPosition = cactusPosition < 0 ? 15 : --cactusPosition;
-  return cactusPosition;
-}
-
+// the dino will stay in the air for 1 second
 int updatedButtonState() {
   if(digitalRead(PUSH_BUTTON_PIN) == LOW && !buttonState) {
     Serial.println("Pressed!");
     buttonTimeout = millis();
     buttonState = true;
   } 
-  if(buttonState && millis() - buttonTimeout >= 1500) {
+  if(buttonState && millis() - buttonTimeout >= 1000) {
     buttonState = false;
     Serial.println("Released!");
   }
   return !buttonState;
 }
 
+void updateCactusPosition() {
+  cactusPosition = cactusPosition < 0 ? 15 : --cactusPosition;
+  cactusPositionUpdateTime = millis();
+  isCactusUpdated = true;
+}
+
+// a simple no operation function
+void noop() {
+  // arduino no operation: https://www.reddit.com/r/arduino/comments/3ynemw/is_there_a_nop_in_arduino/
+  __asm__("nop\n\t");
+}
+
+// updates the cactus position after 400 ms
+void checkForCactusPositionUpdate() {
+  millis() - cactusPositionUpdateTime >= 100 ? updateCactusPosition() : noop();
+}
+
 void checkIfGameOver() {
-  if(cactusPosition == 4) {
+  if(cactusPosition == 4 && isCactusUpdated) {
     if(!buttonState) {
       lcd.clear();
       lcd.print("GAME OVER!!!");
@@ -88,6 +103,8 @@ void checkIfGameOver() {
   } else {
     sprintf(stringBuffer, "Score:%d", gameScore);
   }
+  // reset the cactus status state
+  isCactusUpdated = !isCactusUpdated;
 }
 
 void setup()
@@ -105,11 +122,13 @@ void setup()
   // start the game once the user is ready
   lcd.print("Press to start");
   while(digitalRead(PUSH_BUTTON_PIN)) {}
-  // reset the button state to avoid misreading when the game starts
+  // reset button state to avoid misreading when the game starts
   buttonState = !buttonState;
   lcd.clear();
+  // some initial display settings for the game
+  sprintf(stringBuffer, "Score:%d", gameScore);
+  cactusPositionUpdateTime = millis();
 }
-
 
 void loop()
 {
@@ -118,12 +137,14 @@ void loop()
   lcd.clear();
   lcd.setCursor(4,updatedButtonState());
   lcd.write(DINO_CHARACTER);
-  lcd.setCursor(updatedCactusPosition(), 1);
+  checkForCactusPositionUpdate();
+  lcd.setCursor(cactusPosition, 1);
   lcd.write(CACTUS_CHARACTER);
   lcd.setCursor(0, 0);
   lcd.write(SUN_CHARACTER);
   // update the game score board
   lcd.setCursor(7, 0);
   lcd.print(stringBuffer);
+  // this delay determines how fast the overall game refreshes 
   delay(300);
 }
