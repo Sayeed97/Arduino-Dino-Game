@@ -4,7 +4,7 @@
 #define DINO_CHARACTER 0
 #define CACTUS_CHARACTER 1
 #define SUN_CHARACTER 2
-#define PUSH_BUTTON_PIN 5
+#define PUSH_BUTTON_PIN 2
 
 // set the LCD address to 0x27 for a 16 chars and 2 line display
 LiquidCrystal_I2C lcd(0x27,20,4); 
